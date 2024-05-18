@@ -1,6 +1,7 @@
 import { lintrule, Rule } from "../lib/rule.ts";
 import { Workspace } from "../lib/workspace.ts";
 
+//@ts-ignore
 @lintrule
 export class EqualSkills extends Rule {
   GetRuleName() {

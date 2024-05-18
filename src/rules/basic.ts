@@ -35,6 +35,7 @@ import {
 /**
  * No duplicate entries allowed.
  */
+//@ts-ignore
 @lintrule
 export class NoDuplicates extends Rule {
   GetRuleName(): string {
@@ -154,6 +155,7 @@ export class ExcelColumns extends Rule {
 /**
  * Link Excel fields together.
  */
+//@ts-ignore
 @lintrule
 export class LinkedExcel extends Rule {
   GetRuleName(): string {
@@ -1479,6 +1481,7 @@ export class LinkedExcel extends Rule {
 /**
  *  Check that no two strings share the same ID or Key
  */
+//@ts-ignore
 @lintrule
 export class StringCheck extends Rule {
   GetRuleName(): string {
@@ -1519,6 +1522,7 @@ export class StringCheck extends Rule {
 /**
  * Check that certain numeric bounds are met
  */
+//@ts-ignore
 @lintrule
 export class NumericBounds extends Rule {
   GetRuleName(): string {

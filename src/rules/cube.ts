@@ -11,6 +11,7 @@ const isUnsocketer = (s: string) => s === "uns" || s === "rem";
 /**
  * Check cube inputs.
  */
+//@ts-ignore
 @lintrule
 export class ValidInputs extends Rule {
   GetRuleName(): string {
@@ -189,6 +190,7 @@ export class ValidInputs extends Rule {
 /**
  * Check cube outputs.
  */
+//@ts-ignore
 @lintrule
 export class ValidOutputs extends Rule {
   GetRuleName(): string {
@@ -467,6 +469,7 @@ export class ValidOutputs extends Rule {
 /**
  * Check for valid opcodes and op data.
  */
+//@ts-ignore
 @lintrule
 export class ValidOp extends Rule {
   GetRuleName(): string {

@@ -4,6 +4,7 @@ import { Workspace } from "../lib/workspace.ts";
 /**
  * Ensure that all baseid chains in monstats.txt are contiguous and don't have gaps.
  */
+//@ts-ignore
 @lintrule
 export class ValidChains extends Rule {
   GetRuleName() {

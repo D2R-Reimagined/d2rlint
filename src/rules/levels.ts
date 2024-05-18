@@ -4,6 +4,7 @@ import { D2RLevels, Workspace } from "../lib/workspace.ts";
 /**
  * Check to make sure that the level has valid vis/warp entries
  */
+//@ts-ignore
 @lintrule
 export class ValidWarp extends Rule {
   GetRuleName(): string {
@@ -123,6 +124,7 @@ export class ValidWarp extends Rule {
 /**
  * Ensure no identical waypoints.
  */
+//@ts-ignore
 @lintrule
 export class ValidWPs extends Rule {
   GetRuleName(): string {

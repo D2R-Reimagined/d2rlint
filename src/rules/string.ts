@@ -5,6 +5,7 @@ import { D2RStringTable, Workspace } from "../lib/workspace.ts";
 /**
  * No untranslated strings allowed.
  */
+//@ts-ignore
 @lintrule
 export class NoUntranslated extends Rule {
   GetRuleName(): string {

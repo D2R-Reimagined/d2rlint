@@ -365,6 +365,7 @@ export function PropertyListToDescString(
           return StringForIndex(ws, "improved durability"); // hacky.
         }
         if (statName === "item_numsockets") {
+          // @ts-ignore
           const sockStr = Number.isNaN(min) || Number.isNaN(max)
             ? param
             : min !== max
@@ -392,6 +393,7 @@ export function PropertyListToDescString(
           const hiddenProps =
             config.docOptions.localizedStrings.hiddenItemProperties;
           if (hiddenProps[statName] !== undefined) {
+            // @ts-ignore
             const minmaxstr = Number.isNaN(min) || Number.isNaN(max)
               ? param
               : min !== max
@@ -411,9 +413,11 @@ export function PropertyListToDescString(
     // hardcoded, weird cases where there isn't a stat for the property
     if (func === 5) {
       // dmg-min
+      // @ts-ignore
       stat = itemStatCost.find((isc) => isc.stat === "mindamage");
     } else if (func === 6) {
       // dmg-max
+      // @ts-ignore
       stat = itemStatCost.find((isc) => isc.stat === "maxdamage");
     } else if (func === 7) {
       // dmg%
@@ -442,19 +446,24 @@ export function PropertyListToDescString(
     // this is controlled by dgrp in isc.txt
     if (stat.dgrp !== "") {
       // parse numeric value
+      // @ts-ignore
       const group = Number.parseInt(stat.dgrp as string);
+      // @ts-ignore
       if (!Number.isNaN(group)) {
         // see if there is already a statline with this group. if so, skip.
+        // @ts-ignore
         if (statLines.find((sl) => sl.group === group) !== undefined) {
           return;
         }
 
         // find all stats in itemStatCost with the same group.
         const sameGroupAllStats = itemStatCost.filter((isc) =>
+            // @ts-ignore
           stat !== undefined && stat !== "ethereal" && isc.dgrp === stat.dgrp
         ); // all lines in isc
         const sameGroupItemStats = stats.filter((s) =>
           s.stat !== "ethereal" && s.stat !== undefined &&
+            // @ts-ignore
           stat !== "ethereal" && stat !== undefined &&
           s.stat.dgrp === stat.dgrp
         );
@@ -504,6 +513,7 @@ export function PropertyListToDescString(
       strSame: string,
       len?: string,
     ) => {
+      // @ts-ignore
       if (stat === undefined || stat === "ethereal") {
         return false;
       }

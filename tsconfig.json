@@ -1,5 +1,8 @@
 {
-  "compilerOptions": {
-    "experimentalDecorators": true
-  }
+    "compilerOptions": {
+        "experimentalDecorators": true,
+        "allowImportingTsExtensions": true,
+        "emitDecoratorMetadata": true,
+        "lib": ["esnext", "dom"],
+    }
 }
