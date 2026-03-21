@@ -10,7 +10,7 @@ partially backwards-compatible with the legacy version of the game.
 This tool also provides two more features:
 
 - **Automatic mod documentation**. Once enabled in the configuration file,
-  d2rlint will genenerate HTML documentation for your mod. This includes
+  d2rlint will generate HTML documentation for your mod. This includes
   information about Horadric Cube recipes, runewords, sets, and more.
 - **Other helpful utilities**. There are a number of different commands that you
   can execute in the commandline to make your life a little bit easier.
@@ -24,7 +24,7 @@ wrote a config file:
 d2rlint didn't start, because the configuration file was missing. One has been generated for you.
 Please edit the configuration file (config.json) to set your workspace location.
 By default, this will look in the current working directory.
-Press any key to continue.
+Press enter to continue.
 ```
 
 You will find that it has produced a `config.json` file:
@@ -33,9 +33,10 @@ You will find that it has produced a `config.json` file:
 {
   "workspace": "",
   "fallback": "",
+  "version": "3.0",
   "log": "output.txt",
   "logAppend": false,
-  "legacy": false,
+  "outputFormat": "tsv",
   "iveConsideredDonating": false,
   "rules": {
     "Basic/NoDuplicateExcel": {
@@ -86,19 +87,59 @@ You can adjust the level of concern for each individual rule within the
 
 - `"warn"`: the default for most rules, this will warn about the rule but
   continue execution
-- `"ignore"`: if this is set, the rule will be ignored (the rule is not even
-  evaluated)
-- `"error"`: throw an error if this rule fails and don't continue
-
-Please note that only `"ignore"` has any impact at the moment as this tool is
-still under development.
+- `"ignore"`: if this is set, the rule's output will be suppressed
+- `"error"`: halt and exit with a non-zero code if this rule fires
 
 The program by default writes to `stdout`, but it can also write to a log file.
 If `logAppend` is turned on, it will write to the same log file over and over
 again.
 
+The `outputFormat` field controls the format of log output. Valid values are:
+
+- `"tsv"` (default): tab-separated values, written immediately on each line
+- `"tsv-buffered"`: same format, buffered and flushed at the end of the run
+- `"csv"`: comma-separated values, written immediately
+- `"csv-buffered"`: same format, buffered
+- `"json"`: JSON output, written immediately
+- `"json-buffered"`: same format, buffered and flushed at the end of the run
+
 The program will output a banner at the top of `stdout` unless
 `iveConsideredDonating` has been turned on. **Please consider donating!**
+
+### CLI Flags
+
+Any config field can be overridden for a single run without editing
+`config.json`. Flags are ephemeral by default; use `--save` to persist them.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--workspace <path>` | `-w` | Override workspace directory |
+| `--fallback <path>` | `-f` | Override fallback directory |
+| `--game-version <version>` | | Override game version (`legacy`, `2.6`, `3.0`) |
+| `--log <path>` | `-l` | Override log file path |
+| `--output-format <fmt>` | | Override log output format (`tsv`, `tsv-buffered`, `csv`, `csv-buffered`, `json`, `json-buffered`) |
+| `--log-append` / `--no-log-append` | | Append to or overwrite the log file |
+| `--color` / `--no-color` | | Force enable or disable color output |
+| `--generate-docs` / `--no-generate-docs` | | Enable or disable doc generation |
+| `--rule <Name=action>` | | Override a single rule action (repeatable) |
+| `--save` | | Write overrides back to `config.json` |
+| `--help` | `-h` | Show flag and command reference |
+
+Examples:
+
+```
+# Lint a different mod directory without editing config.json
+d2rlint --workspace "C:/MyMod"
+
+# Treat a specific rule as fatal for this run
+d2rlint --rule Basic/NoDuplicateExcel=error
+
+# Run a command against a legacy workspace
+d2rlint --game-version legacy bulk-code-lookup in.txt out.txt
+
+# Override workspace and save it as the new default
+d2rlint --workspace "C:/MyMod" --save
+```
 
 ### List of Rules
 
@@ -108,14 +149,22 @@ The program will output a banner at the top of `stdout` unless
 - `Basic/ExcelColumns`: Columns that aren't optional and are missing will throw
   a warning. Likewise, columns that aren't supposed to be there will throw a
   warning. (Columns that start with an asterisk (*) are not parsed, and are
-  ignored.)
+  ignored.) Note: this check always runs at parse time regardless of the action
+  setting; setting the action to `"ignore"` silences its output without skipping
+  the check itself.
 - `Basic/LinkedExcel`: Ensures that all inter-file linkage is accurate, with a
   few exceptions. Examples include things like checking for missing strings,
   checking for invalid item codes and so on. This won't check Treasure Class or
   Cube linkage, this is handled by other rules.
+- `Basic/StringCheck`: Ensures that no two strings across all string tables
+  share the same numeric ID. Duplicate IDs can cause one string to silently
+  override another at runtime.
 - `Basic/NumericBounds`: Ensures that no fields go out of bounds. For example, a
   number greater than 6 for 'Picks' in TreasureClassEx.txt would be considered
   invalid for a TC.
+- `Basic/BooleanFields`: Ensures that fields which only accept boolean values
+  contain `0`, `1`, or are empty. Covers boolean columns in `monstats.txt`,
+  `weapons.txt`, `armor.txt`, `misc.txt`, and several other files.
 - `Cube/ValidInputs`: Ensures that both the number of inputs and the inputs
   themselves to cube recipes are valid.
 - `Cube/ValidOutputs`: Ensures that the outputs to cube recipes are valid.
@@ -153,17 +202,20 @@ Note that the files that ship with the original game will trigger some of these
 rules. **This is normal.** There are genuine errors in their own files, and this
 is to be expected.
 
-### Legacy Mode
+### Game Version
 
-By changing `legacy: false` to `legacy: true` in the config.json, your workspace
-will be treated as a Diablo II: Legacy workspace instead of a Diablo II:
-Resurrected one. The support for Legacy is not quite there yet. Mainly, it has a
-few issues:
+The `"version"` field in `config.json` controls which game version your
+workspace is treated as. Valid values are:
 
-- TBL files aren't parsed yet, so it can't check if strings are unfound or
-  untranslated. (`String/NoUntranslated` does not work _at all_ in legacy mode
-  currently.)
-- A few of the column changes from Legacy to Resurrected aren't fully reflected
+- `"3.0"` — Diablo II: Resurrected 3.0 (default)
+- `"2.6"` — Diablo II: Resurrected 2.6
+- `"legacy"` — Diablo II: Lord of Destruction (classic)
+
+Legacy support is partial. Known limitations:
+
+- TBL files aren't parsed, so `String/NoUntranslated` does not work in legacy
+  mode.
+- A few column differences between LoD and Resurrected aren't fully reflected
   yet.
 
 ## For developers
@@ -178,18 +230,18 @@ In order to compile the program, use the following (assuming `deno` is available
 in your `PATH`):
 
 ```
-deno compile --allow-read --allow-write --allow-env src/main.ts
+deno task compile-cli
 ```
 
-This will produce a `src.exe` or `src` executable (depending on your platform).
+This will produce a `d2rlint.exe` or `d2rlint` executable (depending on your platform).
 
 ### Creating new rules
 
 The program is designed to be extensible and customizable for your needs. In the
-`src/rules` directory you can create new rules. They are pretty straightforward:
+`packages/lib/rules` directory you can create new rules. They are pretty straightforward:
 
 ```ts
-import { lintrule, Rule } from "../lib/rule.ts";
+import { lintrule, Rule } from "@d2rlint/lib";
 
 @lintrule
 export default class MyCustomRule extends Rule {
@@ -207,8 +259,8 @@ export default class MyCustomRule extends Rule {
 This example rule will always pass, but check out some examples of rules that
 have already been created within that directory.
 
-Remember that rules need to be imported within the `main.ts` otherwise they will
-not be called.
+Remember that rules need to be imported in `packages/lib/rules/mod.ts` (as a side-effect import)
+otherwise they will not be called.
 
 ## Advanced Feature: Automatic Mod Documentation
 
@@ -271,8 +323,8 @@ We might want certain things to be hidden or discovered by the player, or we
 might want to just hide lots of superfluous recipes in the cube - there's sure
 to be a lot of them.
 
-In the following files, you can add a `@skipdocs` column. Anything with a '1' in
-this column will be hidden in the documentation:
+In the following files, you can add a `@skipdocs` column. Anything with a
+non-empty value in this column will be hidden in the documentation:
 
 - armor.txt
 - misc.txt
@@ -282,6 +334,8 @@ this column will be hidden in the documentation:
 - sets.txt
 - runes.txt
 - cubemain.txt
+- magicprefix.txt
+- magicsuffix.txt
 
 ### Section Headers
 
@@ -297,6 +351,7 @@ that to the list of section headers. It's really that simple.
 You can do this in the following files:
 
 - armor.txt
+- misc.txt
 - weapons.txt
 - gems.txt
 - uniqueitems.txt
