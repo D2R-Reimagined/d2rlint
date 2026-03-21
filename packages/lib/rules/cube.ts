@@ -209,6 +209,7 @@ export class ValidOutputs extends Rule {
       magicPrefix,
       magicSuffix,
       properties,
+      propertyGroups,
       itemTypes,
     } = workspace;
     if (cubemain === undefined || cubemod === undefined) {
@@ -226,6 +227,13 @@ export class ValidOutputs extends Rule {
         "output c",
       ];
 
+      const portalNames = [
+        "Cow Portal",
+        "Pandemonium Portal",
+        "Pandemonium Finale Portal",
+        "Red Portal",
+      ];
+
       const validItem = (s: string) => {
         if (
           armor === undefined || weapons === undefined || misc === undefined ||
@@ -237,6 +245,10 @@ export class ValidOutputs extends Rule {
 
         if (s === "useitem" || s === "usetype") {
           return true; // special case for these
+        }
+
+        if (portalNames.includes(s)) {
+          return true; // portal outputs are always valid
         }
 
         return armor.some((item) => item.code === s) ||
@@ -253,10 +265,7 @@ export class ValidOutputs extends Rule {
           return;
         }
 
-        if (
-          output === "Cow Portal" || output === "Pandemonium Portal" ||
-          output === "Pandemonium Finale Portal" || output === "Red Portal"
-        ) {
+        if (portalNames.includes(output)) {
           return; // these are always valid no matter what
         }
 
@@ -395,6 +404,15 @@ export class ValidOutputs extends Rule {
                   }: wrong number of sockets for ${field} in recipe '${entry.description}'`,
                 );
               }
+            } else if (qualifier.startsWith("lvl=")) {
+              const q = fetchQuantity(/lvl=([0-9]+)/gi, qualifier);
+              if (q === undefined) {
+                this.Warn(
+                  `${entry.GetFileName()}, line ${
+                    i + 2
+                  }: missing quantity for '${qualifier}' for ${field} in recipe '${entry.description}'`,
+                );
+              }
             } else if (
               qualifier !== "upg" && qualifier !== "rep" &&
               qualifier !== "rch" && qualifier !== "reg" && qualifier !== "mod"
@@ -427,7 +445,7 @@ export class ValidOutputs extends Rule {
         }
       });
 
-      // ensure all mods point to valid entries in properties.txt
+      // ensure all mods point to valid entries in properties.txt or propertygroups.txt
       if (properties !== undefined) {
         const modfields: (keyof D2RCubemain)[] = [
           "mod 1",
@@ -453,7 +471,10 @@ export class ValidOutputs extends Rule {
             return;
           }
 
-          if (!properties.some((property) => property.code !== value)) {
+          const foundInProperties = properties.some((property) => property.code === value);
+          const foundInGroups = propertyGroups !== undefined &&
+            propertyGroups.some((pg) => pg.code === value);
+          if (!foundInProperties && !foundInGroups) {
             this.Warn(
               `${entry.GetFileName()}, line ${
                 i + 2

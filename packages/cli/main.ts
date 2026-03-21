@@ -11,6 +11,7 @@ import {
   GetAllRules,
   GetConfig,
   LoadWorkspace,
+  resetLogfile,
   SaveConfig,
   setColorsEnabled,
 } from "@d2rlint/lib";
@@ -46,14 +47,40 @@ const useColor = config.color === "auto" ? supportsColor() : config.color;
 setColorsEnabled(useColor);
 
 const { workspace, fallback, rules, version } = config;
-const ws = LoadWorkspace(workspace, fallback, version);
+
+// ---------------------------------------------------------------------------
+// Build the list of lint runs. When `runs` is non-empty, each entry defines
+// its own workspace / fallback / log / exclude. Otherwise fall back to the
+// single top-level workspace / fallback / log (original behaviour).
+// ---------------------------------------------------------------------------
+
+interface LintRun {
+  workspace: string;
+  fallback: string;
+  log: string;
+  exclude: string[];
+}
+
+const lintRuns: LintRun[] = config.runs.length > 0
+  ? config.runs
+  : [{ workspace, fallback, log: config.log, exclude: [] }];
+
+// For command dispatch we use the first run's workspace (commands are not
+// per-run — they just need *a* workspace).
+const firstRun = lintRuns[0];
+const commandWs = LoadWorkspace(
+  firstRun.workspace,
+  firstRun.fallback,
+  version,
+  firstRun.exclude,
+);
 
 // ---------------------------------------------------------------------------
 // Command dispatch
 // ---------------------------------------------------------------------------
 
 if (positionalArgs.length > 0) {
-  if (!executeCommands(positionalArgs, ws)) {
+  if (!executeCommands(positionalArgs, commandWs)) {
     console.error(
       `ERROR: A command by that name (${positionalArgs[0]}) does not exist.`,
     );
@@ -97,24 +124,35 @@ function pressEnterToContinue(msg: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Rule evaluation
+// Rule evaluation — iterate over all configured lint runs
 // ---------------------------------------------------------------------------
 
 const allRules = GetAllRules();
-for (const rule of allRules) {
-  if (rules[rule.GetRuleName()]?.action !== "ignore") {
-    rule.Evaluate(ws);
+for (const run of lintRuns) {
+  // Override config.log so the LogFile singleton writes to the right place
+  config.log = run.log;
+  resetLogfile();
+
+  console.log(`\n--- Lint run: ${run.workspace} → ${run.log} ---`);
+  const ws = LoadWorkspace(run.workspace, run.fallback, version, run.exclude);
+
+  for (const rule of allRules) {
+    if (rules[rule.GetRuleName()]?.action !== "ignore") {
+      rule.Evaluate(ws);
+    }
   }
+
+  FlushLogfileIfExists();
 }
 
 pressEnterToContinue("Checking complete. Press enter to continue...");
 
 // ---------------------------------------------------------------------------
-// Doc generation
+// Doc generation (uses first run's workspace)
 // ---------------------------------------------------------------------------
 
 if (config.generateDocs === true) {
-  GenerateDocs(ws);
+  GenerateDocs(commandWs);
   pressEnterToContinue("Docs generated. Press enter to continue...");
 }
 
@@ -122,7 +160,11 @@ if (config.generateDocs === true) {
 // --save
 // ---------------------------------------------------------------------------
 
-FlushLogfileIfExists();
+// Restore log to original value before saving so the config file is clean
+config.log = lintRuns.length === 1 && config.runs.length === 0
+  ? lintRuns[0].log
+  : config.log;
+
 if (save) {
   SaveConfig(config, "config.json");
   console.log("Config saved to config.json");

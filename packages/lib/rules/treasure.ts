@@ -72,6 +72,7 @@ export class ValidTreasure extends Rule {
         };
 
         const isItem = (s: string) =>
+          s === "gld" ||
           check(s, armor, "code") || check(s, misc, "code") ||
           check(s, weapons, "code") || check(s, setItems, "index") ||
           check(s, uniqueItems, "index") || check(s, itemTypes, "code");
@@ -100,6 +101,8 @@ export class ValidTreasure extends Rule {
               warn(`invalid 'mul' value for '${field}'`);
             }
           }
+        } else if (item.startsWith("gld,mul=") || item === "gld") {
+          return; // gold with optional multiplier is always valid
         } else if (item.match(/[0-9]+$/gi) !== null) {
           // might be auto TC.
           const matched = [...item.matchAll(/(.+[^0-9]+)[0-9]+$/gi)][0][1];

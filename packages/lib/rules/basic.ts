@@ -176,6 +176,10 @@ export class ExcelColumns extends Rule {
         if (aliasesLower.has(field.field)) {
           return;
         }
+        // Don't warn about columns whose header is purely numeric (e.g. sounds.txt)
+        if (/^\d+$/.test(field.field)) {
+          return;
+        }
         this.Warn(
           `${generic.GetFileName()} - non-standard column '${field.field}' found`,
         );
@@ -337,6 +341,7 @@ export class LinkedExcel extends Rule {
       playerClass,
       plrMode,
       properties,
+      propertyGroups,
       qualityItems,
       rarePrefix,
       rareSuffix,
@@ -366,6 +371,12 @@ export class LinkedExcel extends Rule {
       armor !== undefined && misc !== undefined && weapons !== undefined
         ? armor.concat(misc).concat(weapons)
         : [];
+    // Combined properties + propertygroups for code lookups
+    const allProperties = properties !== undefined
+      ? (propertyGroups !== undefined
+        ? (properties as D2RExcelRecord[]).concat(propertyGroups as D2RExcelRecord[])
+        : (properties as D2RExcelRecord[]))
+      : (propertyGroups as D2RExcelRecord[] | undefined);
     const multifield1 = <T>(base: string, rng: number, start = 1) =>
       seq(start, rng).map((v) => `${base}${v}`) as (keyof T)[];
     const multifield2 = <T>(
@@ -445,9 +456,9 @@ export class LinkedExcel extends Rule {
     mustExist(autoMagic, "transformcolor", "name", colors, "code", isOptional);
 
     // ensure mod1code-mod3code in automagic point to valid properties
-    mustExist(autoMagic, "mod1code", "name", properties, "code", isOptional);
-    mustExist(autoMagic, "mod2code", "name", properties, "code", isOptional);
-    mustExist(autoMagic, "mod3code", "name", properties, "code", isOptional);
+    mustExist(autoMagic, "mod1code", "name", allProperties, "code", isOptional);
+    mustExist(autoMagic, "mod2code", "name", allProperties, "code", isOptional);
+    mustExist(autoMagic, "mod3code", "name", allProperties, "code", isOptional);
 
     // ensure these fields point to valid item types
     const amITypes: (keyof D2RAutomagic)[] = [
@@ -587,7 +598,7 @@ export class LinkedExcel extends Rule {
       ];
 
       modcodes.forEach((field) =>
-        mustExist(file, field, "name", properties, "code", isOptional)
+        mustExist(file, field, "name", allProperties, "code", isOptional)
       );
       icodes.forEach((field) =>
         mustExist(file, field, "name", itemTypes, "code", isOptional)
@@ -619,7 +630,7 @@ export class LinkedExcel extends Rule {
       ...multifield2<D2RMonProp>("prop", " (n)", 6),
       ...multifield2<D2RMonProp>("prop", " (h)", 6),
     ].forEach((field) =>
-      mustExist(monProp, field, "id", properties, "code", isOptional)
+      mustExist(monProp, field, "id", allProperties, "code", isOptional)
     );
 
     // ensure baseid in monstats.txt is a valid entry in monstats.txt
@@ -903,7 +914,7 @@ export class LinkedExcel extends Rule {
     // ensure modXcode is null or valid entry in qualityitems.txt
     const qiModFields = multifield2<D2RQualityItems>("mod", "code", 2);
     qiModFields.forEach((field) =>
-      mustExist(qualityItems, field, "mod1code", properties, "code")
+      mustExist(qualityItems, field, "mod1code", allProperties, "code")
     );
 
     // ensure itype/etype in rareprefix/raresuffix point to valid entries in itemtypes
@@ -934,7 +945,7 @@ export class LinkedExcel extends Rule {
     // ensure TCode1-TCode7 in runes points to valid entries in properties
     const rCodeX = multifield1<D2RRunes>("t1code", 7);
     rCodeX.forEach((field) =>
-      mustExist(runes, field, "name", properties, "code", isOptional)
+      mustExist(runes, field, "name", allProperties, "code", isOptional)
     );
 
     // ensure set in setItems points to valid entries in sets
@@ -957,7 +968,7 @@ export class LinkedExcel extends Rule {
     const setItemsPropB = multifield2<D2RSetItems>("aprop", "b", 5);
     [setItemsProps, setItemsPropA, setItemsPropB].forEach((fieldSet) =>
       fieldSet.forEach((field) =>
-        mustExist(setItems, field, "index", properties, "code", isOptional)
+        mustExist(setItems, field, "index", allProperties, "code", isOptional)
       )
     );
 
@@ -967,7 +978,7 @@ export class LinkedExcel extends Rule {
     const setPCodeB = multifield2<D2RSets>("pcode", "b", 5, 2);
     [setFCodes, setPCodeA, setPCodeB].forEach((fieldSet) =>
       fieldSet.forEach((field) =>
-        mustExist(sets, field, "index", properties, "code", isOptional)
+        mustExist(sets, field, "index", allProperties, "code", isOptional)
       )
     );
 
@@ -1279,7 +1290,7 @@ export class LinkedExcel extends Rule {
 
     // ensure props are valid properties.txt entries
     multifield1<D2RUniqueItems>("prop", 12).forEach((field) =>
-      mustExist(uniqueItems, field, "index", properties, "code", isOptional)
+      mustExist(uniqueItems, field, "index", allProperties, "code", isOptional)
     );
 
     // ensure class in wanderingmon is a valid id in monstats.txt
@@ -1794,7 +1805,7 @@ export class NumericBounds extends Rule {
     gt(objects, "sizey", "name", -1);
     gt(overlay, "numdirections", "overlay", 0);
     gt(petType, "basemax", "pet type", -1);
-    lt(treasureClassEx, "picks", "treasure class", 7);
+    lt(treasureClassEx, "picks", "treasure class", 8);
 
     /**
      * ensure records are in range
@@ -1807,6 +1818,7 @@ export class NumericBounds extends Rule {
       min: number,
       max: number,
       mustExist = false,
+      excludeIds?: string[],
     ) => {
       if (records === undefined) {
         return;
@@ -1817,6 +1829,9 @@ export class NumericBounds extends Rule {
         const asStr = record[field] as unknown as string;
         const indexStr = record[index] as unknown as string;
         if (indexStr === "Expansion") {
+          return;
+        }
+        if (excludeIds !== undefined && excludeIds.includes(indexStr)) {
           return;
         }
         if (asStr === "") {
@@ -1880,7 +1895,7 @@ export class NumericBounds extends Rule {
       inRng(itemFile, "skipname", "name", 0, 1);
       inRng(itemFile, "nameable", "name", 0, 1);
       inRng(itemFile, "permstoreitem", "name", 0, 1);
-      inRng(itemFile, "worldevent", "name", 0, 1);
+      inRng(itemFile, "diablocloneweight", "name", 0, 1);
       inRng(itemFile, "block", "name", 0, 75);
       inRng(itemFile, "rarm", "name", 0, 2);
       inRng(itemFile, "larm", "name", 0, 2);
@@ -1888,14 +1903,14 @@ export class NumericBounds extends Rule {
       inRng(itemFile, "legs", "name", 0, 2);
       inRng(itemFile, "rspad", "name", 0, 2);
       inRng(itemFile, "lspad", "name", 0, 2);
-      inRng(itemFile, "pspell", "name", -1, 14); // 2 pspells are undocumented
+      inRng(itemFile, "pspell", "name", -1, 15); // 2 pspells are undocumented
       inRng(itemFile, "spelldesc", "name", 0, 4);
       inRng(itemFile, "spelldesccolor", "name", 0, 12);
     });
 
     inRng(autoMagic, "spawnable", "name", 0, 1);
     inRng(autoMagic, "rare", "name", 0, 1);
-    inRng(books, "pspell", "name", -1, 14); // 2 pspells are undocumented
+    inRng(books, "pspell", "name", -1, 15); // 2 pspells are undocumented
 
     inRng(charStats, "walkvelocity", "class", 1, 10);
     inRng(charStats, "runvelocity", "class", 1, 10);
@@ -2005,11 +2020,16 @@ export class NumericBounds extends Rule {
     // NOTENOTE, there are two undocumented pcltdofunc functions:
     // 69th function = in use by Corpse Explosion
     // 70th function = in use by vine beast death
-    inRng(missiles, "pcltdofunc", "missile", 0, 70);
-    inRng(missiles, "pclthitfunc", "missile", 0, 64);
-    inRng(missiles, "psrvdofunc", "missile", 0, 37);
-    inRng(missiles, "psrvhitfunc", "missile", 0, 59);
-    inRng(missiles, "psrvdmgfunc", "missile", 0, 15);
+    // 71-76 3.0 no documentation yet
+    inRng(missiles, "pcltdofunc", "missile", 0, 76);
+    // 65 3.0 no document yet
+    inRng(missiles, "pclthitfunc", "missile", 0, 65);
+    // 38-45 3.0 no document yet
+    inRng(missiles, "psrvdofunc", "missile", 0, 45);
+    // 60 3.0 no document yet
+    inRng(missiles, "psrvhitfunc", "missile", 0, 60);
+    // 16-17 3.0 no document yet
+    inRng(missiles, "psrvdmgfunc", "missile", 0, 17);
     inRng(missiles, "red", "missile", 0, 255);
     inRng(missiles, "green", "missile", 0, 255);
     inRng(missiles, "blue", "missile", 0, 255);
@@ -2050,8 +2070,9 @@ export class NumericBounds extends Rule {
     inRng(monSounds, "fsprb", "id", 0, 100);
     inRng(monStats, "translvl", "id", 0, 7);
     inRng(monStats, "sparsepopulate", "id", 0, 100);
-    inRng(monStats, "velocity", "id", 0, 20);
-    inRng(monStats, "run", "id", 0, 20);
+    const colossalExclude = ["colossal1", "colossal2", "colossal3"];
+    inRng(monStats, "velocity", "id", 0, 20, false, colossalExclude);
+    inRng(monStats, "run", "id", 0, 20, false, colossalExclude);
     //inRng(monStats, "level", "id", 0, 99);     FIXME
     //inRng(monStats, "level(n)", "id", 0, 99);  FIXME
     //inRng(monStats, "level(h)", "id", 0, 99);  PLEEZ
@@ -2168,7 +2189,8 @@ export class NumericBounds extends Rule {
     inRng(skillDesc, "skillrow", "skilldesc", 0, 6);
     inRng(skillDesc, "skillcolumn", "skilldesc", 0, 3);
     inRng(skillDesc, "listrow", "skilldesc", -1, 4);
-    inRng(skillDesc, "descdam", "skilldesc", 0, 26); // D2R 2.5 added 25 and 26
+    // D2R 2.5 added 25 and 26; 3.0 added 27 and 28 no documentation yet
+    inRng(skillDesc, "descdam", "skilldesc", 0, 28);
     inRng(skillDesc, "descatt", "skilldesc", 0, 5);
     inRng(states, "setfunc", "state", 0, 19);
     inRng(states, "remfunc", "state", 0, 12);

@@ -910,9 +910,22 @@ export class ValidStatParameters extends Rule {
               const func = statField[0] as keyof D2RProperties;
               const stat = statField[1] as keyof D2RProperties;
               const funcValue = foundProperty[func];
-              const statValue = foundProperty[stat];
-              if (statValue === "") {
-                return; // don't bother, it's blank.
+              let statValue = foundProperty[stat] as string;
+
+              // Some hardcoded property functions implicitly target a stat
+              // even when the stat column is left blank in Properties.txt.
+              if (statValue === "" || statValue === undefined) {
+                const implicitStatMap: Record<string, string> = {
+                  "5": "mindamage",
+                  "6": "maxdamage",
+                  "7": "item_mindamage_percent",
+                };
+                const fv = funcValue as string;
+                if (fv in implicitStatMap) {
+                  statValue = implicitStatMap[fv];
+                } else {
+                  return; // don't bother, it's blank.
+                }
               }
               if (funcValue === "17") {
                 return; // encoded as PARAMETER, skip.
@@ -933,35 +946,102 @@ export class ValidStatParameters extends Rule {
                 foundIsc.encode === "1" || foundIsc.encode === "2" ||
                 foundIsc.encode === "3"
               ) {
-                const itemParAsNumber = parseInt(itemPar);
-                let itemParAsSkillId = itemParAsNumber;
-                if (isNaN(itemParAsSkillId)) { // if is NaN, then it's text. Try loading from skills.txt
-                  let newId = 0;
-                  const foundSkill = skills.find((sk, id) => {
-                    const skillName = sk.skill as string;
-                    const skillNameLc = skillName.toLocaleLowerCase();
+                // For encoded stats, property functions can swap param and min/max usage.
+                // "skill" (func 27): param = skill ID (checked against save param bits), min/max = skill level (checked against save bits)
+                // "skill-rand" (func 27 variant): param = skill level (checked against save bits), min/max = skill ID range (checked against save param bits)
+                const isSkillRand = property === "skill-rand";
 
-                    if (skillName === itemPar || skillNameLc === itemPar) {
-                      newId = id;
-                      return true;
+                if (!isSkillRand) {
+                  // Normal case: param holds the skill ID
+                  const itemParAsNumber = parseInt(itemPar);
+                  let itemParAsSkillId = itemParAsNumber;
+                  if (isNaN(itemParAsSkillId)) { // if is NaN, then it's text. Try loading from skills.txt
+                    let newId = 0;
+                    const foundSkill = skills.find((sk, id) => {
+                      const skillName = sk.skill as string;
+                      const skillNameLc = skillName.toLocaleLowerCase();
+
+                      if (skillName === itemPar || skillNameLc === itemPar) {
+                        newId = id;
+                        return true;
+                      }
+                      return false;
+                    });
+                    if (foundSkill !== undefined) {
+                      itemParAsSkillId = newId;
                     }
-                    return false;
-                  });
-                  if (foundSkill !== undefined) {
-                    itemParAsSkillId = newId;
+                  }
+
+                  if (isNaN(itemParAsSkillId)) {
+                    // WARN! Skill not found
+                    warn(`skill with id '${itemPar}' not found on '${parField}'`);
+                  } else if (skills.length < itemParAsSkillId) {
+                    // WARN! invalid skill id
+                    warn(
+                      `invalid skill id (found: ${itemParAsSkillId}, max: ${skills.length})`,
+                    );
+                  }
+
+                  // Check min/max against save bits (skill level range)
+                  const eSaveBits = foundIsc["save bits"] === ""
+                    ? 0
+                    : parseInt(foundIsc["save bits"] as string);
+                  const eSaveAdd = foundIsc["save add"] === ""
+                    ? 0
+                    : parseInt(foundIsc["save add"] as string);
+
+                  if (!isNaN(eSaveBits) && !isNaN(eSaveAdd) && eSaveBits > 0) {
+                    const eSaveBitsMax = Math.pow(2, eSaveBits) - eSaveAdd;
+
+                    if (itemMin > eSaveBitsMax) {
+                      warn(
+                        `'${minField}': value (${itemMin}) above save bits maximum (${eSaveBitsMax})`,
+                      );
+                    }
+
+                    if (itemMax > eSaveBitsMax) {
+                      warn(
+                        `'${maxField}': value (${itemMax}) above save bits maximum (${eSaveBitsMax})`,
+                      );
+                    }
+                  }
+                } else {
+                  // skill-rand case: min/max hold skill IDs, param holds the skill level
+                  // Check min as skill ID
+                  if (!isNaN(itemMin) && skills.length < itemMin) {
+                    warn(
+                      `'${minField}': invalid skill id (found: ${itemMin}, max: ${skills.length})`,
+                    );
+                  }
+
+                  if (!isNaN(itemMax) && skills.length < itemMax) {
+                    warn(
+                      `'${maxField}': invalid skill id (found: ${itemMax}, max: ${skills.length})`,
+                    );
+                  }
+
+                  // Check param against save bits (skill level range)
+                  const eSaveBits = foundIsc["save bits"] === ""
+                    ? 0
+                    : parseInt(foundIsc["save bits"] as string);
+                  const eSaveAdd = foundIsc["save add"] === ""
+                    ? 0
+                    : parseInt(foundIsc["save add"] as string);
+                  const itemParNum = parseInt(itemPar);
+
+                  if (
+                    !isNaN(eSaveBits) && !isNaN(eSaveAdd) && eSaveBits > 0 &&
+                    !isNaN(itemParNum)
+                  ) {
+                    const eSaveBitsMax = Math.pow(2, eSaveBits) - eSaveAdd;
+                    if (itemParNum > eSaveBitsMax) {
+                      warn(
+                        `'${parField}': value (${itemParNum}) above save bits maximum (${eSaveBitsMax})`,
+                      );
+                    }
                   }
                 }
 
-                if (isNaN(itemParAsSkillId)) {
-                  // WARN! Skill not found
-                  warn(`skill with id '${itemPar}' not found on '${parField}'`);
-                } else if (skills.length < itemParAsSkillId) {
-                  // WARN! invalid skill id
-                  warn(
-                    `invalid skill id (found: ${itemParAsSkillId}, max: ${skills.length})`,
-                  );
-                }
-                // Calculating save bits and save add don't work here
                 return;
               }
 

@@ -260,7 +260,7 @@ export abstract class D2RItemExcelRecord extends D2RExcelRecord {
   permstoreitem: unknown;
   multibuy: unknown;
   nameable: unknown;
-  worldevent: unknown;
+  diablocloneweight: unknown;
   showlevel: unknown;
   spelldescstr2: unknown;
   spelldesccolor: unknown;
@@ -356,6 +356,9 @@ export class D2RArmor extends D2RItemExcelRecord {
       "wclass",
       "2handedwclass",
       "hit class",
+      "eventitem",
+      "advancedstashstackable",
+      "usageconditioncalc",
     ];
   }
 }
@@ -435,6 +438,9 @@ export class D2RWeapons extends D2RItemExcelRecord {
       "calc1",
       "calc2",
       "calc3",
+      "eventitem",
+      "advancedstashstackable",
+      "usageconditioncalc",
     ];
   }
 }
@@ -1004,6 +1010,7 @@ export class D2RExperience extends D2RExcelRecord {
   barbarian: unknown;
   druid: unknown;
   assassin: unknown;
+  warlock: unknown;
   expratio: unknown;
 
   GetFileName(): string {
@@ -1890,7 +1897,6 @@ export class D2RMissiles extends D2RExcelRecord {
   vellev: unknown;
   accel: unknown;
   range: unknown;
-  levrange: unknown;
   light: unknown;
   flicker: unknown;
   red: unknown;
@@ -2536,14 +2542,14 @@ export class D2RMonStats extends D2RExcelRecord {
   cannotusetwohandeditems: unknown;
   // Added in Diablo II: Resurrected 2.5
   treasureclassdesecrated: unknown;
-  treasureclasschampdesecrated: unknown;
-  treasureclassuniquedesecrated: unknown;
+  treasureclassdesecratedchamp: unknown;
+  treasureclassdesecratedunique: unknown;
   "treasureclassdesecrated(n)": unknown;
-  "treasureclasschampdesecrated(n)": unknown;
-  "treasureclassuniquedesecrated(n)": unknown;
+  "treasureclassdesecratedchamp(n)": unknown;
+  "treasureclassdesecratedunique(n)": unknown;
   "treasureclassdesecrated(h)": unknown;
-  "treasureclasschampdesecrated(h)": unknown;
-  "treasureclassuniquedesecrated(h)": unknown;
+  "treasureclassdesecratedchamp(h)": unknown;
+  "treasureclassdesecratedunique(h)": unknown;
   cannotdesecrate: unknown;
   // Added in Diablo II: Resurrected 3.0
   nopreventmonsterheal: unknown;
@@ -2568,14 +2574,14 @@ export class D2RMonStats extends D2RExcelRecord {
       "2.5": {
         added: [
           "treasureclassdesecrated",
-          "treasureclasschampdesecrated",
-          "treasureclassuniquedesecrated",
+          "treasureclassdesecratedchamp",
+          "treasureclassdesecratedunique",
           "treasureclassdesecrated(n)",
-          "treasureclasschampdesecrated(n)",
-          "treasureclassuniquedesecrated(n)",
+          "treasureclassdesecratedchamp(n)",
+          "treasureclassdesecratedunique(n)",
           "treasureclassdesecrated(h)",
-          "treasureclasschampdesecrated(h)",
-          "treasureclassuniquedesecrated(h)",
+          "treasureclassdesecratedchamp(h)",
+          "treasureclassdesecratedunique(h)",
           "cannotdesecrate",
         ],
         renamed: [
@@ -2706,6 +2712,7 @@ export class D2RMonStats2 extends D2RExcelRecord {
   corpsesel: unknown;
   isatt: unknown;
   revive: unknown;
+  limitcorpses: unknown;
   critter: unknown;
   small: unknown;
   large: unknown;
@@ -3417,7 +3424,7 @@ export class D2RSetItems extends D2RExcelRecord {
   apar5b: unknown;
   amin5b: unknown;
   amax5b: unknown;
-  worldevent: unknown;
+  diablocloneweight: unknown;
 
   GetFileName(): string {
     return "setitems.txt";
@@ -4230,6 +4237,7 @@ export class D2RStates extends D2RExcelRecord {
   srvactivefunc: unknown;
   canstack: unknown;
   // new in Diablo II: Resurrected 2.6
+  sunderfull: unknown;
   "sunder-res-reduce": unknown;
   // new in retail release
   hidedead: unknown;
@@ -4339,6 +4347,8 @@ export class D2RTreasureClassEx extends D2RExcelRecord {
   // 'ladder' was added in 2.5, but was replaced by the following in 2.6
   firstLadderSeason: unknown;
   lastLadderSeason: unknown;
+  // dunno when added but missing
+  noalwaysspawn: unknown;
   // Added in Diablo II: Resurrected 3.0
   conditioncalc: unknown;
   questflag: unknown;
@@ -4447,7 +4457,7 @@ export class D2RUniqueItems extends D2RExcelRecord {
   par12: unknown;
   min12: unknown;
   max12: unknown;
-  worldevent: unknown;
+  diablocloneweight: unknown;
 
   /// Internal use only
   skipInDocs: unknown;
@@ -4793,15 +4803,30 @@ export function GetAllWorkspaceExcelFiles(
  * - global directory
  * - excel directory
  * @param file - the name of the file to find. not case sensitive!
+ * @param exclude - optional list of directory paths to skip during the walk
  * @returns {undefined} when no file is found
  * @returns {string} with the text of the file
  */
 function FindExcelOrJson(
   location: string,
   file: string,
+  exclude: string[] = [],
 ): BufferSource | undefined {
   const lowercased = file.toLocaleLowerCase();
+  const normalizedExclude = exclude.map((e) =>
+    e.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase()
+  );
   for (const entry of fs.walkSync(location)) {
+    if (normalizedExclude.length > 0) {
+      const normalizedPath = entry.path.replace(/\\/g, "/").toLowerCase();
+      if (
+        normalizedExclude.some((ex) =>
+          normalizedPath.startsWith(ex + "/") || normalizedPath === ex
+        )
+      ) {
+        continue;
+      }
+    }
     if (entry.isFile && entry.name.toLowerCase() === lowercased) {
       return Deno.readFileSync(entry.path);
     }
@@ -4818,10 +4843,11 @@ function ParseExcel<T extends D2RExcelRecord = D2RExcelRecord>(
   location: string,
   fallback: string,
   type: { new (): T },
+  exclude: string[] = [],
 ): T[] | undefined {
   const generic = new type();
   const file = generic.GetFileName();
-  let fileText = FindExcelOrJson(location, generic.GetFileName());
+  let fileText = FindExcelOrJson(location, generic.GetFileName(), exclude);
   if (fileText === undefined && fallback !== undefined && fallback.length > 0) {
     fileText = FindExcelOrJson(fallback, generic.GetFileName());
   }
@@ -4924,9 +4950,21 @@ function ParseJsonFile<T>(filePath: string | undefined): T | undefined {
 function LoadStrings(
   location: string,
   fallback: string,
+  exclude: string[] = [],
 ): { [key: string]: D2RStringTable[] | undefined } | undefined {
   // walk until we find the "strings" folder
   const entries: { [key: string]: D2RStringTable[] | undefined } = {};
+  const normalizedExclude = exclude.map((e) =>
+    e.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase()
+  );
+
+  const isExcluded = (p: string) => {
+    if (normalizedExclude.length === 0) return false;
+    const np = p.replace(/\\/g, "/").toLowerCase();
+    return normalizedExclude.some((ex) =>
+      np.startsWith(ex + "/") || np === ex
+    );
+  };
 
   // look in the fallback first, the content will get replaced.
   if (fallback !== undefined && fallback.length > 0) {
@@ -4944,6 +4982,7 @@ function LoadStrings(
 
   // look in the real directory next
   for (const entry of fs.walkSync(location)) {
+    if (isExcluded(entry.path)) continue;
     if (entry.isDirectory && entry.name.toLocaleLowerCase() === "strings") {
       for (const fileEntry of fs.walkSync(entry.path, { maxDepth: 1 })) {
         if (fileEntry.isFile && fileEntry.name.match(/\.json$/gi) !== null) {
@@ -4997,9 +5036,10 @@ export function FindMatchingStringIndex(
 function LoadJsonFiles(
   location: string,
   fallback: string,
+  exclude: string[] = [],
 ): D2RJsonTables {
   const find = (file: string) => {
-    const ret = FindExcelOrJson(location, file);
+    const ret = FindExcelOrJson(location, file, exclude);
     if (ret === undefined && fallback !== undefined && fallback.length > 0) {
       return FindExcelOrJson(fallback, file);
     }
@@ -5029,132 +5069,137 @@ export function LoadWorkspace(
   location: string,
   fallback: string,
   version: GameVersion,
+  exclude: string[] = [],
 ): Workspace {
   return {
     actInfo: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RActInfo),
-    armor: ParseExcel(location, fallback, D2RArmor),
-    armType: ParseExcel(location, fallback, D2RArmType),
-    autoMagic: ParseExcel(location, fallback, D2RAutomagic),
-    autoMap: ParseExcel(location, fallback, D2RAutomap),
-    belts: ParseExcel(location, fallback, D2RBelts),
-    bodyLocs: ParseExcel(location, fallback, D2RBodyLocs),
-    books: ParseExcel(location, fallback, D2RBooks),
-    charStats: ParseExcel(location, fallback, D2RCharStats),
-    colors: ParseExcel(location, fallback, D2RColors),
-    compCode: ParseExcel(location, fallback, D2RCompCode),
-    composit: ParseExcel(location, fallback, D2RComposit),
-    cubemain: ParseExcel(location, fallback, D2RCubemain),
-    cubemod: ParseExcel(location, fallback, D2RCubemod),
+      : ParseExcel(location, fallback, D2RActInfo, exclude),
+    armor: ParseExcel(location, fallback, D2RArmor, exclude),
+    armType: ParseExcel(location, fallback, D2RArmType, exclude),
+    autoMagic: ParseExcel(location, fallback, D2RAutomagic, exclude),
+    autoMap: ParseExcel(location, fallback, D2RAutomap, exclude),
+    belts: ParseExcel(location, fallback, D2RBelts, exclude),
+    bodyLocs: ParseExcel(location, fallback, D2RBodyLocs, exclude),
+    books: ParseExcel(location, fallback, D2RBooks, exclude),
+    charStats: ParseExcel(location, fallback, D2RCharStats, exclude),
+    colors: ParseExcel(location, fallback, D2RColors, exclude),
+    compCode: ParseExcel(location, fallback, D2RCompCode, exclude),
+    composit: ParseExcel(location, fallback, D2RComposit, exclude),
+    cubemain: ParseExcel(location, fallback, D2RCubemain, exclude),
+    cubemod: ParseExcel(location, fallback, D2RCubemod, exclude),
     difficultyLevels: ParseExcel(
       location,
       fallback,
       D2RDifficultyLevels,
+      exclude,
     ),
-    elemTypes: ParseExcel(location, fallback, D2RElemTypes),
-    events: ParseExcel(location, fallback, D2REvents),
-    experience: ParseExcel(location, fallback, D2RExperience),
-    gamble: ParseExcel(location, fallback, D2RGamble),
-    gems: ParseExcel(location, fallback, D2RGems),
-    hireling: ParseExcel(location, fallback, D2RHireling),
-    hitclass: ParseExcel(location, fallback, D2RHitclass),
-    inventory: ParseExcel(location, fallback, D2RInventory),
-    itemRatio: ParseExcel(location, fallback, D2RItemRatio),
-    itemStatCost: ParseExcel(location, fallback, D2RItemStatCost),
-    itemTypes: ParseExcel(location, fallback, D2RItemTypes),
+    elemTypes: ParseExcel(location, fallback, D2RElemTypes, exclude),
+    events: ParseExcel(location, fallback, D2REvents, exclude),
+    experience: ParseExcel(location, fallback, D2RExperience, exclude),
+    gamble: ParseExcel(location, fallback, D2RGamble, exclude),
+    gems: ParseExcel(location, fallback, D2RGems, exclude),
+    hireling: ParseExcel(location, fallback, D2RHireling, exclude),
+    hitclass: ParseExcel(location, fallback, D2RHitclass, exclude),
+    inventory: ParseExcel(location, fallback, D2RInventory, exclude),
+    itemRatio: ParseExcel(location, fallback, D2RItemRatio, exclude),
+    itemStatCost: ParseExcel(location, fallback, D2RItemStatCost, exclude),
+    itemTypes: ParseExcel(location, fallback, D2RItemTypes, exclude),
     itemUICategories: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RItemUICategories),
-    levels: ParseExcel(location, fallback, D2RLevels),
+      : ParseExcel(location, fallback, D2RItemUICategories, exclude),
+    levels: ParseExcel(location, fallback, D2RLevels, exclude),
     levelGroups: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RLevelGroups),
+      : ParseExcel(location, fallback, D2RLevelGroups, exclude),
     lowQualityItems: ParseExcel(
       location,
       fallback,
       D2RLowQualityItems,
+      exclude,
     ),
-    lvlMaze: ParseExcel(location, fallback, D2RLvlMaze),
-    lvlPrest: ParseExcel(location, fallback, D2RLvlPrest),
-    lvlSub: ParseExcel(location, fallback, D2RLvlSub),
-    lvlTypes: ParseExcel(location, fallback, D2RLvlTypes),
-    lvlWarp: ParseExcel(location, fallback, D2RLvlWarp),
-    magicPrefix: ParseExcel(location, fallback, D2RMagicPrefix),
-    magicSuffix: ParseExcel(location, fallback, D2RMagicSuffix),
-    misc: ParseExcel(location, fallback, D2RMisc),
-    missCalc: ParseExcel(location, fallback, D2RMissCalc),
-    missiles: ParseExcel(location, fallback, D2RMissiles),
-    monAi: ParseExcel(location, fallback, D2RMonAi),
-    monEquip: ParseExcel(location, fallback, D2RMonEquip),
+    lvlMaze: ParseExcel(location, fallback, D2RLvlMaze, exclude),
+    lvlPrest: ParseExcel(location, fallback, D2RLvlPrest, exclude),
+    lvlSub: ParseExcel(location, fallback, D2RLvlSub, exclude),
+    lvlTypes: ParseExcel(location, fallback, D2RLvlTypes, exclude),
+    lvlWarp: ParseExcel(location, fallback, D2RLvlWarp, exclude),
+    magicPrefix: ParseExcel(location, fallback, D2RMagicPrefix, exclude),
+    magicSuffix: ParseExcel(location, fallback, D2RMagicSuffix, exclude),
+    misc: ParseExcel(location, fallback, D2RMisc, exclude),
+    missCalc: ParseExcel(location, fallback, D2RMissCalc, exclude),
+    missiles: ParseExcel(location, fallback, D2RMissiles, exclude),
+    monAi: ParseExcel(location, fallback, D2RMonAi, exclude),
+    monEquip: ParseExcel(location, fallback, D2RMonEquip, exclude),
     monPet: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RMonPet),
-    monLvl: ParseExcel(location, fallback, D2RMonLvl),
-    monMode: ParseExcel(location, fallback, D2RMonMode),
-    monPlace: ParseExcel(location, fallback, D2RMonPlace),
-    monPreset: ParseExcel(location, fallback, D2RMonPreset),
-    monProp: ParseExcel(location, fallback, D2RMonProp),
-    monSeq: ParseExcel(location, fallback, D2RMonSeq),
-    monSounds: ParseExcel(location, fallback, D2RMonSounds),
-    monStats: ParseExcel(location, fallback, D2RMonStats),
-    monStats2: ParseExcel(location, fallback, D2RMonStats2),
-    monType: ParseExcel(location, fallback, D2RMonType),
-    monUMod: ParseExcel(location, fallback, D2RMonUMod),
-    npc: ParseExcel(location, fallback, D2RNPC),
-    objects: ParseExcel(location, fallback, D2RObjects),
-    objGroup: ParseExcel(location, fallback, D2RObjGroup),
-    objMode: ParseExcel(location, fallback, D2RObjMode),
+      : ParseExcel(location, fallback, D2RMonPet, exclude),
+    monLvl: ParseExcel(location, fallback, D2RMonLvl, exclude),
+    monMode: ParseExcel(location, fallback, D2RMonMode, exclude),
+    monPlace: ParseExcel(location, fallback, D2RMonPlace, exclude),
+    monPreset: ParseExcel(location, fallback, D2RMonPreset, exclude),
+    monProp: ParseExcel(location, fallback, D2RMonProp, exclude),
+    monSeq: ParseExcel(location, fallback, D2RMonSeq, exclude),
+    monSounds: ParseExcel(location, fallback, D2RMonSounds, exclude),
+    monStats: ParseExcel(location, fallback, D2RMonStats, exclude),
+    monStats2: ParseExcel(location, fallback, D2RMonStats2, exclude),
+    monType: ParseExcel(location, fallback, D2RMonType, exclude),
+    monUMod: ParseExcel(location, fallback, D2RMonUMod, exclude),
+    npc: ParseExcel(location, fallback, D2RNPC, exclude),
+    objects: ParseExcel(location, fallback, D2RObjects, exclude),
+    objGroup: ParseExcel(location, fallback, D2RObjGroup, exclude),
+    objMode: ParseExcel(location, fallback, D2RObjMode, exclude),
     objPreset: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RObjPreset),
-    objType: ParseExcel(location, fallback, D2RObjType),
-    overlay: ParseExcel(location, fallback, D2ROverlay),
-    petType: ParseExcel(location, fallback, D2RPetType),
-    playerClass: ParseExcel(location, fallback, D2RPlayerClass),
-    plrMode: ParseExcel(location, fallback, D2RPlrMode),
-    plrType: ParseExcel(location, fallback, D2RPlrType),
-    properties: ParseExcel(location, fallback, D2RProperties),
+      : ParseExcel(location, fallback, D2RObjPreset, exclude),
+    objType: ParseExcel(location, fallback, D2RObjType, exclude),
+    overlay: ParseExcel(location, fallback, D2ROverlay, exclude),
+    petType: ParseExcel(location, fallback, D2RPetType, exclude),
+    playerClass: ParseExcel(location, fallback, D2RPlayerClass, exclude),
+    plrMode: ParseExcel(location, fallback, D2RPlrMode, exclude),
+    plrType: ParseExcel(location, fallback, D2RPlrType, exclude),
+    properties: ParseExcel(location, fallback, D2RProperties, exclude),
     propertyGroups: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RPropertyGroups),
-    qualityItems: ParseExcel(location, fallback, D2RQualityItems),
-    rarePrefix: ParseExcel(location, fallback, D2RRarePrefix),
-    rareSuffix: ParseExcel(location, fallback, D2RRareSuffix),
-    runes: ParseExcel(location, fallback, D2RRunes),
+      : ParseExcel(location, fallback, D2RPropertyGroups, exclude),
+    qualityItems: ParseExcel(location, fallback, D2RQualityItems, exclude),
+    rarePrefix: ParseExcel(location, fallback, D2RRarePrefix, exclude),
+    rareSuffix: ParseExcel(location, fallback, D2RRareSuffix, exclude),
+    runes: ParseExcel(location, fallback, D2RRunes, exclude),
     runewordUICategories: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RRunewordUICategories),
-    setItems: ParseExcel(location, fallback, D2RSetItems),
-    sets: ParseExcel(location, fallback, D2RSets),
-    shrines: ParseExcel(location, fallback, D2RShrines),
-    skillCalc: ParseExcel(location, fallback, D2RSkillCalc),
-    skillDesc: ParseExcel(location, fallback, D2RSkillDesc),
-    skills: ParseExcel(location, fallback, D2RSkills),
-    soundEnviron: ParseExcel(location, fallback, D2RSoundEnviron),
-    sounds: ParseExcel(location, fallback, D2RSounds),
-    states: ParseExcel(location, fallback, D2RStates),
-    storePage: ParseExcel(location, fallback, D2RStorePage),
-    superUniques: ParseExcel(location, fallback, D2RSuperUniques),
+      : ParseExcel(location, fallback, D2RRunewordUICategories, exclude),
+    setItems: ParseExcel(location, fallback, D2RSetItems, exclude),
+    sets: ParseExcel(location, fallback, D2RSets, exclude),
+    shrines: ParseExcel(location, fallback, D2RShrines, exclude),
+    skillCalc: ParseExcel(location, fallback, D2RSkillCalc, exclude),
+    skillDesc: ParseExcel(location, fallback, D2RSkillDesc, exclude),
+    skills: ParseExcel(location, fallback, D2RSkills, exclude),
+    soundEnviron: ParseExcel(location, fallback, D2RSoundEnviron, exclude),
+    sounds: ParseExcel(location, fallback, D2RSounds, exclude),
+    states: ParseExcel(location, fallback, D2RStates, exclude),
+    storePage: ParseExcel(location, fallback, D2RStorePage, exclude),
+    superUniques: ParseExcel(location, fallback, D2RSuperUniques, exclude),
     treasureClassEx: ParseExcel(
       location,
       fallback,
       D2RTreasureClassEx,
+      exclude,
     ),
     uniqueApellation: ParseExcel(
       location,
       fallback,
       D2RUniqueAppellation,
+      exclude,
     ),
-    uniqueItems: ParseExcel(location, fallback, D2RUniqueItems),
-    uniquePrefix: ParseExcel(location, fallback, D2RUniquePrefix),
-    uniqueSuffix: ParseExcel(location, fallback, D2RUniqueSuffix),
+    uniqueItems: ParseExcel(location, fallback, D2RUniqueItems, exclude),
+    uniquePrefix: ParseExcel(location, fallback, D2RUniquePrefix, exclude),
+    uniqueSuffix: ParseExcel(location, fallback, D2RUniqueSuffix, exclude),
     wanderingMon: version === "legacy"
       ? undefined
-      : ParseExcel(location, fallback, D2RWanderingMon),
-    weapons: ParseExcel(location, fallback, D2RWeapons),
+      : ParseExcel(location, fallback, D2RWanderingMon, exclude),
+    weapons: ParseExcel(location, fallback, D2RWeapons, exclude),
 
-    strings: LoadStrings(location, fallback),
-    json: LoadJsonFiles(location, fallback),
+    strings: LoadStrings(location, fallback, exclude),
+    json: LoadJsonFiles(location, fallback, exclude),
   };
 }

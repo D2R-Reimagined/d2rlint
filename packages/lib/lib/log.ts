@@ -135,3 +135,13 @@ export function GetLogfile(config: SavedConfiguration): LogFile {
 export function FlushLogfileIfExists(): void {
   curLog?.Flush();
 }
+
+/**
+ * Resets the logfile singleton so a new one will be created on the next
+ * GetLogfile() call. Used between multiple lint runs that write to different
+ * log files.
+ */
+export function resetLogfile(): void {
+  curLog?.Flush();
+  curLog = undefined;
+}

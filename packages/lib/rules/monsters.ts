@@ -24,6 +24,14 @@ export class ValidChains extends Rule {
         const baseId = record.baseid as unknown as string;
         const nextInChain = record.nextinclass as unknown as string;
         const id = record.id as unknown as string;
+        const boss = record.boss as unknown as string;
+        const primeevil = record.primeevil as unknown as string;
+
+        // Skip baseid chain validation for boss or primeevil monsters
+        if ((boss !== "" && boss !== "0" && boss !== undefined) ||
+            (primeevil !== "" && primeevil !== "0" && primeevil !== undefined)) {
+          return chainSet;
+        }
 
         // find this baseId in chain set
         const found = chainSet.find((it) => it.baseId === baseId);

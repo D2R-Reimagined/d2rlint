@@ -37,6 +37,18 @@ export interface RuleConfig {
 
 type AllRuleConfig = { [ruleName: string]: RuleConfig };
 
+/**
+ * Describes a single lint run with its own workspace, log, and exclusions.
+ * When `runs` is present on the config, the top-level workspace/fallback/log
+ * are ignored in favour of per-run values.
+ */
+export interface RunConfig {
+  workspace: string;
+  fallback: string;
+  log: string;
+  exclude: string[];
+}
+
 export interface SavedConfiguration {
   version: GameVersion;
   workspace: string;
@@ -46,6 +58,7 @@ export interface SavedConfiguration {
   outputFormat: OutputFormat;
   color: "auto" | boolean;
   iveConsideredDonating: boolean;
+  runs: RunConfig[];
   rules: { [ruleName: string]: RuleConfig };
   generateDocs: boolean;
   docOptions: {
@@ -174,6 +187,7 @@ function CreateDefaultConfig(): SavedConfiguration {
     outputFormat: "tsv",
     color: "auto",
     iveConsideredDonating: false,
+    runs: [],
     rules,
     generateDocs: false,
     docOptions: {
