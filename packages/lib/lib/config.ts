@@ -59,6 +59,7 @@ export interface SavedConfiguration {
   color: "auto" | boolean;
   iveConsideredDonating: boolean;
   runs: RunConfig[];
+  cubeQuotations: boolean;
   rules: { [ruleName: string]: RuleConfig };
   generateDocs: boolean;
   docOptions: {
@@ -188,6 +189,7 @@ function CreateDefaultConfig(): SavedConfiguration {
     color: "auto",
     iveConsideredDonating: false,
     runs: [],
+    cubeQuotations: false,
     rules,
     generateDocs: false,
     docOptions: {

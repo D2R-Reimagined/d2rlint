@@ -372,11 +372,12 @@ export class LinkedExcel extends Rule {
         ? armor.concat(misc).concat(weapons)
         : [];
     // Combined properties + propertygroups for code lookups
-    const allProperties = properties !== undefined
+    type PropertyRecord = D2RExcelRecord & { code: unknown };
+    const allProperties: PropertyRecord[] | undefined = properties !== undefined
       ? (propertyGroups !== undefined
-        ? (properties as D2RExcelRecord[]).concat(propertyGroups as D2RExcelRecord[])
-        : (properties as D2RExcelRecord[]))
-      : (propertyGroups as D2RExcelRecord[] | undefined);
+        ? (properties as PropertyRecord[]).concat(propertyGroups as PropertyRecord[])
+        : (properties as PropertyRecord[]))
+      : (propertyGroups as PropertyRecord[] | undefined);
     const multifield1 = <T>(base: string, rng: number, start = 1) =>
       seq(start, rng).map((v) => `${base}${v}`) as (keyof T)[];
     const multifield2 = <T>(
@@ -2269,7 +2270,7 @@ export class BooleanFields extends Rule {
 
         fields.forEach((field) => {
           const val = record[field] as unknown as string;
-          if (val === "" || val === "0" || val === "1") {
+          if (val === undefined || val === "" || val === "0" || val === "1") {
             return;
           }
           this.Warn(

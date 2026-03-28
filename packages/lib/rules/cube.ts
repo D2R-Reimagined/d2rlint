@@ -1,3 +1,4 @@
+import { GetConfig } from "../lib/config.ts";
 import { lintrule, Rule } from "../lib/rule.ts";
 import type { D2RCubemain, Workspace } from "../lib/workspace.ts";
 
@@ -73,9 +74,9 @@ export class ValidInputs extends Rule {
           return;
         }
 
-        const qty = [...input.matchAll(/(?:".*,qty=([0-9]+).*")|(.+)/gi)][0];
-        if (qty[1] !== undefined) {
-          numInputsReal += parseInt(qty[1].toString());
+        const qtyMatch = input.match(/(?:^".*,qty=([0-9]+).*"$)|(?:^[^"]*,qty=([0-9]+))/i);
+        if (qtyMatch && (qtyMatch[1] !== undefined || qtyMatch[2] !== undefined)) {
+          numInputsReal += parseInt((qtyMatch[1] ?? qtyMatch[2]).toString());
         } else {
           numInputsReal++;
         }
@@ -99,13 +100,21 @@ export class ValidInputs extends Rule {
         };
 
         // let's make sure that the actual field of each input is legitimate
-        if (input.match(/".*"/gi) !== null) {
+        // inputs can be quoted ("item,qty=3") or unquoted with commas (item,qty=3)
+        const isQuoted = input.match(/".*"/gi) !== null;
+        const hasUnquotedComma = !isQuoted && input.includes(",");
+        if (isQuoted || hasUnquotedComma) {
           // is a formula
-          const matched = [...input.matchAll(/"(.*)"/gi)][0][1];
-          if (matched === undefined) {
-            return; // shouldn't happen
+          let split: string[];
+          if (isQuoted) {
+            const matched = [...input.matchAll(/"(.*)"/gi)][0][1];
+            if (matched === undefined) {
+              return; // shouldn't happen
+            }
+            split = matched.split(",");
+          } else {
+            split = input.split(",");
           }
-          const split = matched.split(",");
 
           // first item of a split should be the item
           if (!isRealItem(split[0])) {
@@ -166,12 +175,14 @@ export class ValidInputs extends Rule {
               i + 2
             }: couldn't find '${input}' for ${inputField} in recipe '${entry.description}'`,
           );
-          if (input === '""') {
-            this.Message(`(hint: empty quotes)`);
-          } else if (input.match(/"/gi) !== null) {
-            this.Message(`(hint: unclosed quote)`);
-          } else if (input.match(/,/gi) !== null) {
-            this.Message(`(hint: try wrapping with quotation marks)`);
+          if (GetConfig().cubeQuotations) {
+            if (input === '""') {
+              this.Message(`(hint: empty quotes)`);
+            } else if (input.match(/"/gi) !== null) {
+              this.Message(`(hint: unclosed quote)`);
+            } else if (input.match(/,/gi) !== null) {
+              this.Message(`(hint: try wrapping with quotation marks)`);
+            }
           }
         }
       });
@@ -269,14 +280,21 @@ export class ValidOutputs extends Rule {
           return; // these are always valid no matter what
         }
 
-        if (output.match(/".+"/gi) !== null) {
+        const isQuotedOutput = output.match(/".+"/gi) !== null;
+        const hasUnquotedCommaOutput = !isQuotedOutput && output.includes(",");
+        if (isQuotedOutput || hasUnquotedCommaOutput) {
           // is a formula
-          const quoted = [...output.matchAll(/"(.+)"/gi)][0][1];
-          const split = quoted.split(",");
+          let split: string[];
+          if (isQuotedOutput) {
+            const quoted = [...output.matchAll(/"(.+)"/gi)][0][1];
+            split = quoted.split(",");
+          } else {
+            split = output.split(",");
+          }
           if ((split[0] === "useitem" || split[0] === "usetype") && idx > 0) {
             this.Warn(
               `${entry.GetFileName()}, line ${i + 2}: ${
-                quoted[1]
+                split[0]
               } is not valid in '${field}', it is only valid for the first output`,
             );
             return;
@@ -437,10 +455,12 @@ export class ValidOutputs extends Rule {
             }: could not find '${output}' for ${field} in recipe '${entry.description}'`,
           );
 
-          if (output.match(/"/gi) !== null) {
-            this.Message(`(hint: unclosed quote, check and fix it?)`);
-          } else if (output.match(/,/gi) !== null) {
-            this.Message(`(hint: wrap the formula in quotes first)`);
+          if (GetConfig().cubeQuotations) {
+            if (output.match(/"/gi) !== null) {
+              this.Message(`(hint: unclosed quote, check and fix it?)`);
+            } else if (output.match(/,/gi) !== null) {
+              this.Message(`(hint: wrap the formula in quotes first)`);
+            }
           }
         }
       });

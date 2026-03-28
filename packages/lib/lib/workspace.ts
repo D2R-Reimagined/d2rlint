@@ -795,7 +795,7 @@ export class D2RComposit extends D2RExcelRecord {
 export class D2RCubemain extends D2RExcelRecord {
   description: unknown;
   enabled: unknown;
-  //ladder: unknown;  // Removed in Diablo II: Resurrected 2.6
+  ladder: unknown;  // Removed in Diablo II: Resurrected 2.6
   "min diff": unknown;
   version: unknown;
   op: unknown;
@@ -912,6 +912,7 @@ export class D2RCubemain extends D2RExcelRecord {
     return {
       "2.6": {
         added: ["firstLadderSeason", "lastLadderSeason"],
+        removed: ["ladder"],
       },
     };
   }
@@ -1015,6 +1016,14 @@ export class D2RExperience extends D2RExcelRecord {
 
   GetFileName(): string {
     return "experience.txt";
+  }
+
+  override GetVersionChanges(): Partial<Record<PatchVersion, VersionDelta>> {
+    return {
+      "3.0": {
+        added: ["warlock"],
+      },
+    };
   }
 }
 
@@ -3250,7 +3259,7 @@ export class D2RRareSuffix extends D2RRareBase {
 export class D2RRunes extends D2RExcelRecord {
   name: unknown;
   complete: unknown;
-  //server: unknown;    // Removed in Diablo II: Resurrected 2.6
+  server: unknown;    // Removed in Diablo II: Resurrected 2.6
   itype1: unknown;
   itype2: unknown;
   itype3: unknown;
@@ -3312,6 +3321,7 @@ export class D2RRunes extends D2RExcelRecord {
     return {
       "2.6": {
         added: ["firstLadderSeason", "lastLadderSeason"],
+        removed: ["server"],
       },
       "3.0": {
         added: [
@@ -4254,7 +4264,7 @@ export class D2RStates extends D2RExcelRecord {
         added: ["hidedead"], // retail release, bucketed here
       },
       "2.6": {
-        added: ["sunder-res-reduce"],
+        added: ["sunderfull", "sunder-res-reduce"],
       },
       "3.0": {
         added: ["vfxweaponstate"],
@@ -4392,6 +4402,7 @@ export class D2RUniqueItems extends D2RExcelRecord {
   disablechronicle: unknown;
   dropconditioncalc: unknown;
   // 'firstLadderSeason' and 'lastLadderSeason' replace 'ladder' in Diablo II: Resurrected 2.6
+  ladder: unknown;
   firstLadderSeason: unknown;
   lastLadderSeason: unknown;
   rarity: unknown;
@@ -4470,6 +4481,7 @@ export class D2RUniqueItems extends D2RExcelRecord {
     return {
       "2.6": {
         added: ["firstLadderSeason", "lastLadderSeason"],
+        removed: ["ladder"],
       },
       "3.0": {
         removed: ["enabled"],
