@@ -101,10 +101,15 @@ export class ValidInputs extends Rule {
 
         // let's make sure that the actual field of each input is legitimate
         // inputs can be quoted ("item,qty=3") or unquoted with commas (item,qty=3)
-        const isQuoted = input.match(/".*"/gi) !== null;
+        const isQuoted = input.match(/".+"/gi) !== null;
         const hasUnquotedComma = !isQuoted && input.includes(",");
         if (isQuoted || hasUnquotedComma) {
           // is a formula
+          if (hasUnquotedComma && GetConfig().cubeQuotations) {
+            this.Warn(
+              `${entry.GetFileName()}, line ${i + 2}: ${inputField} '${input}' for recipe '${entry.description}' should be wrapped in quotes`,
+            );
+          }
           let split: string[];
           if (isQuoted) {
             const matched = [...input.matchAll(/"(.*)"/gi)][0][1];
@@ -284,6 +289,11 @@ export class ValidOutputs extends Rule {
         const hasUnquotedCommaOutput = !isQuotedOutput && output.includes(",");
         if (isQuotedOutput || hasUnquotedCommaOutput) {
           // is a formula
+          if (hasUnquotedCommaOutput && GetConfig().cubeQuotations) {
+            this.Warn(
+              `${entry.GetFileName()}, line ${i + 2}: ${field} '${output}' for recipe '${entry.description}' should be wrapped in quotes`,
+            );
+          }
           let split: string[];
           if (isQuotedOutput) {
             const quoted = [...output.matchAll(/"(.+)"/gi)][0][1];
@@ -443,11 +453,13 @@ export class ValidOutputs extends Rule {
             }
           });
         } else if (output === '""') {
-          this.Warn(
-            `${entry.GetFileName()}, line ${
-              i + 2
-            }: empty quotes in ${field} for recipe ${entry.description}`,
-          );
+          if (GetConfig().cubeQuotations) {
+            this.Warn(
+              `${entry.GetFileName()}, line ${
+                i + 2
+              }: empty quotes in ${field} '${output}' for recipe '${entry.description}'`,
+            );
+          }
         } else if (!validItem(output)) {
           this.Warn(
             `${entry.GetFileName()}, line ${
