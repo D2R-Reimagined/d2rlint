@@ -33,6 +33,7 @@ export type DocPageType =
 
 export interface RuleConfig {
   action: RuleAction;
+  idStart?: number;
 }
 
 type AllRuleConfig = { [ruleName: string]: RuleConfig };
@@ -176,7 +177,7 @@ function CreateDefaultConfig(): SavedConfiguration {
   const rules: AllRuleConfig = {};
 
   allRules.forEach((rule) =>
-    rules[rule.GetRuleName()] = { action: rule.GetDefaultAction() }
+    rules[rule.GetRuleName()] = rule.GetDefaultConfig()
   );
 
   return {

@@ -4757,6 +4757,8 @@ export interface Workspace {
   weapons?: D2RWeapons[];
 
   strings?: { [key: string]: D2RStringTable[] | undefined };
+  adjacentStringFiles?: { [key: string]: D2RStringTable[] | undefined };
+  layoutJsonFiles?: { [key: string]: string | undefined };
   json?: D2RJsonTables;
 
   /// Docs only
@@ -5045,6 +5047,165 @@ export function FindMatchingStringIndex(
  * @param location - the first location to look for JSON files in
  * @param fallback - the fallback location to look for JSON files in
  */
+/**
+ * Derives the adjacent string files path from the workspace location.
+ * If workspace is like data/global/excel, the adjacent path is data/local/lng/strings.
+ * @param location - the workspace location
+ * @returns the path to the adjacent strings directory, or undefined if it can't be derived
+ */
+function DeriveAdjacentStringsPath(location: string): string | undefined {
+  const normalized = location.replace(/\\/g, "/");
+  // Find "global" in the path and replace global/excel (and anything after) with local/lng/strings
+  const globalIdx = normalized.toLowerCase().lastIndexOf("/global");
+  if (globalIdx === -1) {
+    // try without leading slash
+    if (normalized.toLowerCase().startsWith("global")) {
+      return "local/lng/strings";
+    }
+    return undefined;
+  }
+  const base = normalized.substring(0, globalIdx);
+  return `${base}/local/lng/strings`;
+}
+
+/**
+ * Loads string files from the adjacent local/lng/strings directory.
+ * Scans the derived adjacent path (and fallback) for .json files.
+ * @param location - the workspace location (e.g. data/global/excel)
+ * @param fallback - the fallback location
+ * @returns the loaded string files, or undefined if none found
+ */
+function LoadAdjacentStrings(
+  location: string,
+  fallback: string,
+): { [key: string]: D2RStringTable[] | undefined } | undefined {
+  // Derive the adjacent path from workspace location
+  const adjacentPath = DeriveAdjacentStringsPath(location);
+  const fallbackAdjacentPath = fallback.length > 0
+    ? DeriveAdjacentStringsPath(fallback)
+    : undefined;
+
+  // Build expected file list from the adjacent path(s)
+  const fileSet = new Set<string>();
+  for (const dir of [adjacentPath, fallbackAdjacentPath]) {
+    if (dir === undefined) continue;
+    try {
+      for (const entry of Deno.readDirSync(dir)) {
+        if (entry.isFile && entry.name.match(/\.json$/gi) !== null) {
+          fileSet.add(entry.name);
+        }
+      }
+    } catch {
+      // Directory not found, skip
+    }
+  }
+
+  if (fileSet.size === 0) {
+    if (adjacentPath === undefined && fallbackAdjacentPath === undefined) {
+      console.log(
+        `WARNING: Could not derive adjacent string path from workspace, JSON string integrity checks will be skipped.`,
+      );
+    } else {
+      console.log(
+        `WARNING: No .json files found in adjacent string paths, JSON string integrity checks will be skipped.`,
+      );
+    }
+    return undefined;
+  }
+
+  const entries: { [key: string]: D2RStringTable[] | undefined } = {};
+
+  for (const fileName of fileSet) {
+    const baseName = fileName.replace(/\.json$/i, "");
+    let loaded: D2RStringTable[] | undefined = undefined;
+
+    // Try adjacent path first
+    if (adjacentPath !== undefined) {
+      const filePath = `${adjacentPath}/${fileName}`;
+      loaded = ParseJsonFile<D2RStringTable[]>(filePath);
+    }
+
+    // Try fallback adjacent path
+    if (loaded === undefined && fallbackAdjacentPath !== undefined) {
+      const filePath = `${fallbackAdjacentPath}/${fileName}`;
+      loaded = ParseJsonFile<D2RStringTable[]>(filePath);
+    }
+
+    if (loaded === undefined) {
+      console.log(
+        `WARNING: ${fileName} couldn't be found in adjacent string paths, data may be incomplete!`,
+      );
+    } else {
+      entries[baseName] = loaded;
+    }
+  }
+
+  if (Object.keys(entries).length > 0) {
+    return entries;
+  }
+  return undefined;
+}
+
+/**
+ * Derives the ui/layouts path from the workspace location.
+ * If workspace is like data/global/excel, the layouts path is data/global/ui/layouts.
+ */
+function DeriveLayoutsPath(location: string): string | undefined {
+  const normalized = location.replace(/\\/g, "/");
+  const globalIdx = normalized.toLowerCase().lastIndexOf("/global");
+  if (globalIdx === -1) {
+    if (normalized.toLowerCase().startsWith("global")) {
+      return "global/ui/layouts";
+    }
+    return undefined;
+  }
+  const base = normalized.substring(0, globalIdx);
+  return `${base}/global/ui/layouts`;
+}
+
+/**
+ * Loads all .json files from data/global/ui/layouts as raw text.
+ */
+function LoadLayoutJsonFiles(
+  location: string,
+  fallback: string,
+): { [key: string]: string | undefined } | undefined {
+  const layoutPath = DeriveLayoutsPath(location);
+  const fallbackLayoutPath = fallback.length > 0
+    ? DeriveLayoutsPath(fallback)
+    : undefined;
+
+  const fileMap = new Map<string, string>();
+
+  for (const dir of [layoutPath, fallbackLayoutPath]) {
+    if (dir === undefined) continue;
+    try {
+      for (const entry of Deno.readDirSync(dir)) {
+        if (entry.isFile && entry.name.match(/\.json$/gi) !== null && !fileMap.has(entry.name)) {
+          try {
+            const content = Deno.readTextFileSync(`${dir}/${entry.name}`);
+            fileMap.set(entry.name, content);
+          } catch {
+            // skip unreadable files
+          }
+        }
+      }
+    } catch {
+      // Directory not found, skip
+    }
+  }
+
+  if (fileMap.size === 0) {
+    return undefined;
+  }
+
+  const entries: { [key: string]: string | undefined } = {};
+  for (const [name, content] of fileMap) {
+    entries[name.replace(/\.json$/i, "")] = content;
+  }
+  return entries;
+}
+
 function LoadJsonFiles(
   location: string,
   fallback: string,
@@ -5212,6 +5373,11 @@ export function LoadWorkspace(
     weapons: ParseExcel(location, fallback, D2RWeapons, exclude),
 
     strings: LoadStrings(location, fallback, exclude),
+    adjacentStringFiles: LoadAdjacentStrings(
+      location,
+      fallback,
+    ),
+    layoutJsonFiles: LoadLayoutJsonFiles(location, fallback),
     json: LoadJsonFiles(location, fallback, exclude),
   };
 }

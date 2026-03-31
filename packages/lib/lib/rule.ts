@@ -4,7 +4,7 @@
  */
 
 import { brightRed, brightYellow, cyan, gray } from "jsr:@std/fmt/colors";
-import { GetConfig, type RuleAction } from "./config.ts";
+import { GetConfig, type RuleAction, type RuleConfig } from "./config.ts";
 import { FlushLogfileIfExists, GetLogfile, type LogEntry } from "./log.ts";
 import type { Workspace } from "./workspace.ts";
 
@@ -70,6 +70,14 @@ export abstract class Rule {
    */
   GetDefaultAction(): RuleAction {
     return "warn";
+  }
+
+  /**
+   * Gets the default configuration for this rule.
+   * Override to add rule-specific config fields.
+   */
+  GetDefaultConfig(): RuleConfig {
+    return { action: this.GetDefaultAction() };
   }
 
   /**

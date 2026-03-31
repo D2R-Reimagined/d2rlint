@@ -10,3 +10,4 @@ import "./monsters.ts";
 import "./skills.ts";
 import "./string.ts";
 import "./treasure.ts";
+import "./json.ts";
