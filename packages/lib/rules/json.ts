@@ -97,6 +97,63 @@ export class JsonDuplicateIds extends Rule {
 }
 
 /**
+ * Checks that each string entry has id, Key, and all 13 languages.
+ */
+//@ts-ignore
+@lintrule
+export class JsonStringFormat extends Rule {
+  GetRuleName(): string {
+    return "Json/StringFormat";
+  }
+
+  Evaluate(workspace: Workspace) {
+    const { adjacentStringFiles } = workspace;
+    if (adjacentStringFiles === undefined) {
+      return;
+    }
+
+    const requiredKeys = [
+      "id",
+      "Key",
+      "enUS",
+      "zhTW",
+      "deDE",
+      "esES",
+      "frFR",
+      "itIT",
+      "koKR",
+      "plPL",
+      "esMX",
+      "jaJP",
+      "ptBR",
+      "ruRU",
+      "zhCN",
+    ];
+
+    for (const fileName of Object.keys(adjacentStringFiles)) {
+      const entries = adjacentStringFiles[fileName];
+      if (entries === undefined || entries.length === 0 || entries.forEach === undefined) {
+        continue;
+      }
+
+      entries.forEach((entry, index) => {
+        const missing = requiredKeys.filter(
+          (key) => entry[key as keyof typeof entry] === undefined,
+        );
+
+        if (missing.length > 0) {
+          this.Warn(
+            `${fileName}.json: entry ${index + 1} (${
+              entry.Key ?? "unknown key"
+            }) is missing fields: ${missing.join(", ")}`,
+          );
+        }
+      });
+    }
+  }
+}
+
+/**
  * Checks that .json string keys with id > 40000 are referenced
  * in any column of the .txt files. The key must be an exact cell match (standalone entry).
  */
