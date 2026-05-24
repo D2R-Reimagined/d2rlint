@@ -759,9 +759,23 @@ export class D2RCharStats extends D2RExcelRecord {
   item10loc: unknown;
   item10count: unknown;
   item10quality: unknown;
+  // Added in Diablo II: Resurrected 3.0
+  twohandedoffhandrestrictitemtype: unknown;
+  twohandeddamageasonehanded: unknown;
 
   GetFileName(): string {
     return "charstats.txt";
+  }
+
+  override GetVersionChanges(): Partial<Record<PatchVersion, VersionDelta>> {
+    return {
+      "3.0": {
+        added: [
+          "twohandedoffhandrestrictitemtype",
+          "twohandeddamageasonehanded",
+        ],
+      },
+    };
   }
 }
 
@@ -1643,6 +1657,7 @@ export class D2RLevels extends D2RExcelRecord {
   levelgroup: unknown;
   // Added in Diablo II: Resurrected 3.0
   preventtownportal: unknown;
+  completiontotalroomsoverride: unknown;
 
   GetFileName(): string {
     return "levels.txt";
@@ -1654,7 +1669,7 @@ export class D2RLevels extends D2RExcelRecord {
         added: ["levelgroup"],
       },
       "3.0": {
-        added: ["preventtownportal"],
+        added: ["preventtownportal", "completiontotalroomsoverride"],
       },
     };
   }
@@ -4554,6 +4569,21 @@ export class D2RMonPet extends D2RExcelRecord {
   consumecalc5: unknown;
   numunderlingcalc: unknown;
   bindchancecalc: unknown;
+  calc1: unknown;
+  calc2: unknown;
+  calc3: unknown;
+  calc4: unknown;
+  calc5: unknown;
+  boundstat1: unknown;
+  boundcalc1: unknown;
+  boundstat2: unknown;
+  boundcalc2: unknown;
+  boundstat3: unknown;
+  boundcalc3: unknown;
+  boundstat4: unknown;
+  boundcalc4: unknown;
+  boundstat5: unknown;
+  boundcalc5: unknown;
 
   GetFileName(): string {
     return "monpet.txt";

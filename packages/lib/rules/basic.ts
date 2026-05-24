@@ -2021,15 +2021,15 @@ export class NumericBounds extends Rule {
     // NOTENOTE, there are two undocumented pcltdofunc functions:
     // 69th function = in use by Corpse Explosion
     // 70th function = in use by vine beast death
-    // 71-76 3.0 no documentation yet
-    inRng(missiles, "pcltdofunc", "missile", 0, 76);
-    // 65 3.0 no document yet
+    // 71-77 3.0+
+    inRng(missiles, "pcltdofunc", "missile", 0, 77);
+    // 65 3.0+
     inRng(missiles, "pclthitfunc", "missile", 0, 65);
-    // 38-45 3.0 no document yet
+    // 38-45 3.0+
     inRng(missiles, "psrvdofunc", "missile", 0, 45);
-    // 60 3.0 no document yet
+    // 60 3.0+
     inRng(missiles, "psrvhitfunc", "missile", 0, 60);
-    // 16-17 3.0 no document yet
+    // 16-17 3.0+
     inRng(missiles, "psrvdmgfunc", "missile", 0, 17);
     inRng(missiles, "red", "missile", 0, 255);
     inRng(missiles, "green", "missile", 0, 255);
